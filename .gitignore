@@ -1,0 +1,6 @@
+*.tfplan
+dozzle.plan
+tfplan
+*.terraform
+*.tfstate
+*.backup
