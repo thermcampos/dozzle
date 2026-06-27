@@ -2,7 +2,7 @@ terraform {
   required_providers {
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = ">= 2.0.0" 
+      version = ">= 2.0.0"
     }
   }
 
@@ -109,8 +109,8 @@ resource "kubernetes_service_v1" "dozzle_svc" {
   }
   spec {
     selector = { app = "dozzle" }
-    port { 
-      port = 80
+    port {
+      port        = 80
       target_port = 8080
     }
   }
@@ -134,7 +134,7 @@ resource "kubernetes_ingress_v1" "dozzle_ingress" {
       host = "dozzle.darkroasted.vps-kinghost.net"
       http {
         path {
-          path = "/"
+          path      = "/"
           path_type = "Prefix"
           backend {
             service {
