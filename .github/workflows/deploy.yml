@@ -110,5 +110,8 @@ jobs:
         run: terraform init -input=false
 
       - name: Terraform Apply
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWD_SECRET_ACCESS_KEY }}
         run: timeout 1m terraform apply tfplan
 
