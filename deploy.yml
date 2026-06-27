@@ -1,0 +1,114 @@
+name: Deploy to prod
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  terraform-plan:
+    runs-on: easynode-debian
+    outputs:
+      no_changes: ${{ steps.check-changes.outputs.no_changes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Validate cluster access
+        run: |
+          kubectl cluster-info
+          kubectl get namespace dozzle
+
+      - name: Terraform Fmt -check -diff
+        run: terraform fmt -check -diff
+
+      - name: Terraform Init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: check-changes
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          timeout 1m terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > tfplan.json
+          if jq -e '.resource_changes | length == 0' tfplan.json >/dev/null; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+            echo "No changes to apply."
+            exit 0
+          else
+            echo "Changes detected. Proceeding with apply"
+            echo "no_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: tfplan
+          path: tfplan
+
+  terraform-apply:
+    runs-on: easynode-debian
+    needs: terraform-plan
+    if: >
+      (github.event_name == 'push' || github.event_name == 'workflow_run' || inputs.apply == 'true')
+      && needs.terraform-plan.outputs.no_changes == 'false'
+    environment:
+      name: production
+      url: https://polpa-gestao.darkroasted.vps-kinghost.net
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: tfplan
+
+      - name: Setup Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "{{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Terraform Init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        run: timeout 1m terraform apply tfplan
+
