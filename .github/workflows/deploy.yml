@@ -6,21 +6,12 @@ concurrency:
 
 on:
   workflow_dispatch:
-    inputs:
-      apply:
-        description: 'Force apply even if no changes detected'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
   push:
     branches: [ main ]
 
 jobs:
   terraform-plan:
-    runs-on: ubuntu-debian
+    runs-on: ubuntu-latest
     outputs:
       has_changes: ${{ steps.check-changes.outputs.has_changes }}
     permissions:
