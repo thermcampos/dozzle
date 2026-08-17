@@ -7,7 +7,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket                      = "tasknote"
+    bucket                      = "dozzle"
     key                         = "kubernetes/terraform.tfstate"
     region                      = "auto"
     endpoints                   = { s3 = "https://d17eb09b6bce2f90e16e800bb2a6baf9.r2.cloudflarestorage.com" }
