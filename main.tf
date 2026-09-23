@@ -80,7 +80,7 @@ resource "kubernetes_deployment_v1" "dozzle" {
         service_account_name = kubernetes_service_account_v1.dozzle_pod_viewer.metadata[0].name
         container {
           name  = "dozzle"
-          image = "amir20/dozzle:v10.6.6"
+          image = "amir20/dozzle:v11.1.1"
           port { container_port = 8080 }
 
           env {
